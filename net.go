@@ -7,6 +7,7 @@ import (
 	"net"
 	"sync"
 	"time"
+	"io"
 )
 
 // A ConnState represents the state of a client connection to a server. It's
@@ -68,6 +69,9 @@ type Conn interface {
 
 	// Send writes message to output buffer
 	Send(*Request) error
+
+	// SendRaw writes arbitrary data from a WriterTo to output buffer
+	SendRaw(w io.WriterTo) error
 
 	// Close closes the connection. Any blocked Read or Write operations
 	// will be unblocked and return errors.
@@ -176,13 +180,21 @@ func (c *conn) forceWrite(b []byte) error {
 
 // Send writes OpenFlow data to the connection.
 func (c *conn) Send(r *Request) error {
+	return c.send(r)
+}
+
+func (c *conn) SendRaw(w io.WriterTo) error {
+	return c.send(w)
+}
+
+func (c *conn) send(w io.WriterTo) error {
 	if d := c.WriteTimeout; d != 0 {
 		defer func() {
 			c.SetWriteDeadline(time.Now().Add(d))
 		}()
 	}
 
-	_, err := r.WriteTo(c)
+	_, err := w.WriteTo(c)
 	return err
 }
 
